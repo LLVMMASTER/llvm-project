@@ -6,6 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
+#include "llvm/Support/CommandLine.h"
+
 #include "clang/CodeGen/BackendUtil.h"
 #include "BackendConsumer.h"
 #include "LinkInModulesPass.h"
@@ -95,6 +99,7 @@ using namespace llvm;
   llvm::PassPluginLibraryInfo get##Ext##PluginInfo();
 #include "llvm/Support/Extension.def"
 
+
 namespace llvm {
 extern cl::opt<bool> PrintPipelinePasses;
 
@@ -120,6 +125,30 @@ static cl::opt<PGOOptions::ColdFuncOpt> ClPGOColdFuncAttr(
 
 extern cl::opt<InstrProfCorrelator::ProfCorrelatorKind> ProfileCorrelate;
 } // namespace llvm
+
+//my new code
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo();
+
+namespace {
+class ControlFlowFlatteningPassLoader {
+public:
+  ControlFlowFlatteningPassLoader() {
+    // Load the pass plugin
+    if (llvmGetPassPluginInfo) {
+      llvm::PassBuilder PB;
+      PB.registerPipelineParsingCallback(
+        [](llvm::StringRef Name, llvm::FunctionPassManager &FPM, llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
+          if (Name == "cff") {
+            FPM.addPass(ControlFlowFlatteningPass());
+            return true;
+          }
+          return false;
+        });
+    }
+  }
+} Loader;
+}
+//end of my new code
 
 namespace {
 
